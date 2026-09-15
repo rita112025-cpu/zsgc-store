@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { adminFetch } from "@/lib/session"
+import { replaceVariants } from "@/lib/demo-db"
 import type { ProductDTO } from "@/lib/types"
 
 const SWATCHES: { name: string; hex: string }[] = [
@@ -134,21 +134,10 @@ export function VariantEditor({
   const save = async () => {
     setSaving(true)
     try {
-      const res = await adminFetch("/api/admin/products", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          id: product.id,
-          variants: variants.map(({ color, size, stock, priceDelta }) => ({
-            color,
-            size,
-            stock,
-            priceDelta,
-          })),
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? "Failed to save variants")
+      await replaceVariants(
+        product.id,
+        variants.map(({ color, size, stock, priceDelta }) => ({ color, size, stock, priceDelta }))
+      )
       toast.success("Variants saved", { description: `${variants.length} variant(s) for ${product.name}` })
       onSaved()
       onOpenChange(false)

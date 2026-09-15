@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { getSessionId } from "@/lib/session"
+import { addToWishlist } from "@/lib/demo-db"
 
 /**
  * Detects `/?wishlist=id1,id2,…` on load, imports those products into the
@@ -27,17 +27,9 @@ export function useSharedWishlist() {
     if (ids.length === 0) return
 
     setImporting(true)
-    Promise.all(
-      ids.map((productId) =>
-        fetch("/api/wishlist", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ sessionId: getSessionId(), productId }),
-        }).catch(() => null)
-      )
-    )
+    Promise.allSettled(ids.map((productId) => addToWishlist(productId)))
       .then((results) => {
-        const ok = results.filter(Boolean).length
+        const ok = results.filter((r) => r.status === "fulfilled").length
         if (ok > 0) {
           toast.success(`Imported ${ok} item${ok === 1 ? "" : "s"} from a shared wishlist`, {
             description: "Find them in your Wishlist tab.",

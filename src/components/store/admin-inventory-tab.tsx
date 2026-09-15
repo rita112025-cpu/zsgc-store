@@ -15,19 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { adminFetch } from "@/lib/session"
-import type { ProductDTO } from "@/lib/types"
+import { adminListProducts, exportInventoryCsv } from "@/lib/demo-db"
 
 function useAdminProducts() {
-  return useQuery({
-    queryKey: ["admin", "products"],
-    queryFn: async () => {
-      const res = await adminFetch("/api/admin/products")
-      if (!res.ok) throw new Error("Failed to load products")
-      return (await res.json()) as { products: ProductDTO[] }
-    },
-    select: (d) => d.products,
-  })
+  return useQuery({ queryKey: ["admin", "products"], queryFn: adminListProducts })
 }
 
 export function AdminInventoryTab() {
@@ -35,9 +26,7 @@ export function AdminInventoryTab() {
 
   const exportCsv = async () => {
     try {
-      const res = await adminFetch("/api/admin/export")
-      if (!res.ok) throw new Error("Export failed")
-      const blob = await res.blob()
+      const blob = new Blob([await exportInventoryCsv()], { type: "text/csv" })
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url

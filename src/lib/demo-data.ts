@@ -1,23 +1,33 @@
-import { PrismaClient } from "@prisma/client";
+// Fictional catalog and history the demo starts from in every browser.
 
-const db = new PrismaClient();
-
-type SeedVariant = { color: string; size?: string; stock: number; priceDelta?: number };
-
-interface SeedProduct {
-  slug: string;
-  name: string;
-  category: string;
-  priceCents: number;
-  description: string;
-  image: string;
-  badge?: string;
-  subscription?: boolean;
-  rating: number;
-  variants: SeedVariant[];
+export interface SeedVariant {
+  color: string
+  size?: string
+  stock: number
+  priceDelta?: number
 }
 
-const PRODUCTS: SeedProduct[] = [
+export interface SeedProduct {
+  slug: string
+  name: string
+  category: string
+  priceCents: number
+  description: string
+  image: string
+  badge?: string
+  subscription?: boolean
+  rating: number
+  variants: SeedVariant[]
+}
+
+export interface SeedLine {
+  slug: string
+  qty: number
+  color: string
+  size?: string
+}
+
+export const SEED_PRODUCTS: SeedProduct[] = [
   {
     slug: "heritage-cotton-tee",
     name: "Heritage Cotton Tee",
@@ -204,158 +214,27 @@ const PRODUCTS: SeedProduct[] = [
       { color: "Dark Roast", size: "1kg", stock: 3, priceDelta: 2200 },
     ],
   },
-];
+]
 
-const GIFT_CARDS = [
+export const SEED_GIFT_CARDS = [
   { code: "ZSGC-WELCOME-25", balanceCents: 2500 },
   { code: "ZSGC-HOLIDAY-50", balanceCents: 5000 },
   { code: "ZSGC-VIP-100", balanceCents: 10000 },
-];
+]
 
-async function main() {
-  console.log("Seeding products…");
-  const productIds: Record<string, string> = {};
+export const SEED_ORDERS: { daysAgo: number; email: string; items: SeedLine[] }[] = [
+  { daysAgo: 13, email: "amelia@example.com", items: [{ slug: "heritage-cotton-tee", qty: 2, color: "Black", size: "M" }, { slug: "wool-beanie", qty: 1, color: "Rust" }] },
+  { daysAgo: 11, email: "ravi@example.com", items: [{ slug: "merino-crew-sweater", qty: 1, color: "Oatmeal", size: "M" }] },
+  { daysAgo: 9, email: "sofia@example.com", items: [{ slug: "rain-shell-jacket", qty: 1, color: "Forest", size: "M" }, { slug: "leather-card-wallet", qty: 1, color: "Tan" }] },
+  { daysAgo: 7, email: "amelia@example.com", items: [{ slug: "stoneware-mug-set", qty: 1, color: "Speckled" }] },
+  { daysAgo: 6, email: "kenji@example.com", items: [{ slug: "wireless-earbuds", qty: 1, color: "Black" }, { slug: "desk-charging-pad", qty: 2, color: "Gray" }] },
+  { daysAgo: 4, email: "nora@example.com", items: [{ slug: "linen-throw-blanket", qty: 1, color: "Sage" }, { slug: "soy-wax-candle", qty: 3, color: "Cedar & Smoke" }] },
+  { daysAgo: 3, email: "ravi@example.com", items: [{ slug: "single-origin-coffee", qty: 2, color: "Medium Roast", size: "250g" }] },
+  { daysAgo: 1, email: "sofia@example.com", items: [{ slug: "canvas-weekender-bag", qty: 1, color: "Olive" }, { slug: "wool-beanie", qty: 2, color: "Cream" }] },
+]
 
-  for (const p of PRODUCTS) {
-    const product = await db.product.upsert({
-      where: { slug: p.slug },
-      update: {
-        name: p.name,
-        description: p.description,
-        category: p.category,
-        priceCents: p.priceCents,
-        image: p.image,
-        badge: p.badge ?? null,
-        subscription: p.subscription ?? false,
-        rating: p.rating,
-      },
-      create: {
-        slug: p.slug,
-        name: p.name,
-        description: p.description,
-        category: p.category,
-        priceCents: p.priceCents,
-        image: p.image,
-        badge: p.badge ?? null,
-        subscription: p.subscription ?? false,
-        rating: p.rating,
-      },
-    });
-    productIds[p.slug] = product.id;
-
-    const existing = await db.variant.findMany({ where: { productId: product.id } });
-    const key = (v: { color: string; size?: string }) => `${v.color}|${v.size ?? ""}`;
-    const existingKeys = new Set(existing.map((v) => `${v.color}|${v.size}`));
-
-    for (const v of p.variants) {
-      if (!existingKeys.has(key(v))) {
-        await db.variant.create({
-          data: {
-            productId: product.id,
-            color: v.color,
-            size: v.size ?? "",
-            stock: v.stock,
-            priceDelta: v.priceDelta ?? 0,
-          },
-        });
-      }
-    }
-    // Remove variants no longer in the seed definition
-    const wantedKeys = new Set(p.variants.map(key));
-    for (const ev of existing) {
-      if (!wantedKeys.has(`${ev.color}|${ev.size}`)) {
-        await db.variant.delete({ where: { id: ev.id } });
-      }
-    }
-  }
-
-  console.log("Seeding gift cards…");
-  for (const gc of GIFT_CARDS) {
-    await db.giftCard.upsert({
-      where: { code: gc.code },
-      update: {},
-      create: { code: gc.code, balanceCents: gc.balanceCents, initialCents: gc.balanceCents },
-    });
-  }
-
-  // ── Historical orders (spread over the last 14 days for dashboard charts) ──
-  const orderCount = await db.order.count();
-  if (orderCount === 0) {
-    console.log("Seeding historical orders…");
-    const day = 24 * 60 * 60 * 1000;
-    const now = Date.now();
-    const seedOrders: {
-      daysAgo: number;
-      email: string;
-      items: { slug: string; qty: number; color?: string; size?: string }[];
-    }[] = [
-      { daysAgo: 13, email: "amelia@example.com", items: [{ slug: "heritage-cotton-tee", qty: 2, color: "Black", size: "M" }, { slug: "wool-beanie", qty: 1, color: "Rust" }] },
-      { daysAgo: 11, email: "ravi@example.com", items: [{ slug: "merino-crew-sweater", qty: 1, color: "Oatmeal", size: "M" }] },
-      { daysAgo: 9, email: "sofia@example.com", items: [{ slug: "rain-shell-jacket", qty: 1, color: "Forest", size: "M" }, { slug: "leather-card-wallet", qty: 1, color: "Tan" }] },
-      { daysAgo: 7, email: "amelia@example.com", items: [{ slug: "stoneware-mug-set", qty: 1, color: "Speckled" }] },
-      { daysAgo: 6, email: "kenji@example.com", items: [{ slug: "wireless-earbuds", qty: 1, color: "Black" }, { slug: "desk-charging-pad", qty: 2, color: "Gray" }] },
-      { daysAgo: 4, email: "nora@example.com", items: [{ slug: "linen-throw-blanket", qty: 1, color: "Sage" }, { slug: "soy-wax-candle", qty: 3, color: "Cedar & Smoke" }] },
-      { daysAgo: 3, email: "ravi@example.com", items: [{ slug: "single-origin-coffee", qty: 2, color: "Medium Roast", size: "250g" }] },
-      { daysAgo: 1, email: "sofia@example.com", items: [{ slug: "canvas-weekender-bag", qty: 1, color: "Olive" }, { slug: "wool-beanie", qty: 2, color: "Cream" }] },
-    ];
-
-    for (const o of seedOrders) {
-      const createdAt = new Date(now - o.daysAgo * day);
-      const lines = o.items.map((it) => {
-        const p = PRODUCTS.find((x) => x.slug === it.slug)!;
-        const variant = p.variants.find(
-          (v) => v.color === (it.color ?? "") && (v.size ?? "") === (it.size ?? "")
-        ) ?? p.variants.find((v) => v.color === (it.color ?? ""));
-        const unit = p.priceCents + (variant?.priceDelta ?? 0);
-        return {
-          productId: productIds[it.slug],
-          name: p.name,
-          variantLabel: [it.color, it.size].filter(Boolean).join(" / "),
-          unitPriceCents: unit,
-          quantity: it.qty,
-        };
-      });
-      const subtotal = lines.reduce((s, l) => s + l.unitPriceCents * l.quantity, 0);
-      const hasSub = o.items.some((it) => PRODUCTS.find((x) => x.slug === it.slug)?.subscription);
-      const order = await db.order.create({
-        data: {
-          sessionId: `seed-${o.daysAgo}-${o.email.split("@")[0]}`,
-          email: o.email,
-          subtotalCents: subtotal,
-          totalCents: subtotal,
-          currency: "USD",
-          totalMajor: subtotal / 100,
-          status: o.daysAgo > 5 ? "delivered" : o.daysAgo > 2 ? "shipped" : "paid",
-          hasSubscription: hasSub,
-          createdAt,
-          items: { create: lines },
-        },
-      });
-      if (hasSub) {
-        for (const it of o.items) {
-          const p = PRODUCTS.find((x) => x.slug === it.slug)!;
-          if (p.subscription) {
-            await db.subscription.create({
-              data: { sessionId: order.sessionId, productId: productIds[it.slug], createdAt },
-            });
-          }
-        }
-      }
-    }
-  }
-
-  const counts = {
-    products: await db.product.count(),
-    variants: await db.variant.count(),
-    giftCards: await db.giftCard.count(),
-    orders: await db.order.count(),
-  };
-  console.log("Seed complete:", counts);
-}
-
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => db.$disconnect());
+export const SEED_ABANDONED_CARTS: { sessionId: string; email: string; hoursAgo: number; items: SeedLine[] }[] = [
+  { sessionId: "guest-7c41e2a9-demo", email: "leo@example.com", hoursAgo: 52, items: [{ slug: "merino-crew-sweater", qty: 1, color: "Charcoal", size: "M" }] },
+  { sessionId: "guest-2b9f06d3-demo", email: "hana@example.com", hoursAgo: 27, items: [{ slug: "linen-throw-blanket", qty: 1, color: "Clay" }, { slug: "soy-wax-candle", qty: 2, color: "Fig & Sea Salt" }] },
+  { sessionId: "guest-e5a810c7-demo", email: "omar@example.com", hoursAgo: 9, items: [{ slug: "wireless-earbuds", qty: 1, color: "White" }] },
+]

@@ -97,5 +97,3 @@ export interface StatsDTO {
   categorySplit: { category: string; revenueCents: number }[];
   lowStock: { productId: string; name: string; variantLabel: string; stock: number }[];
 }
-
-export const ADMIN_KEY = "zsgc-admin";

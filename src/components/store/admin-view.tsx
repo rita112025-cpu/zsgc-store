@@ -1,101 +1,48 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { Eye, Lock, ShieldCheck } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
+import { Info, RotateCcw, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminDashboardTab } from "@/components/store/admin-dashboard-tab"
 import { AdminProductsTab } from "@/components/store/admin-products-tab"
 import { AdminInventoryTab } from "@/components/store/admin-inventory-tab"
 import { AdminCartsTab, AdminEmailsTab } from "@/components/store/admin-ops-tabs"
-import { isAdminUnlocked, lockAdmin, unlockAdmin } from "@/lib/session"
+import { resetDemoData } from "@/lib/demo-db"
 
 export function AdminView() {
-  const [unlocked, setUnlocked] = useState(false)
-  const [key, setKey] = useState("")
-  const { data: readOnly } = useQuery({
-    queryKey: ["config"],
-    queryFn: async () => (await (await fetch("/api/config")).json()) as { adminReadOnly: boolean },
-    select: (d) => d.adminReadOnly,
-  })
+  const qc = useQueryClient()
 
-  useEffect(() => setUnlocked(isAdminUnlocked()), [])
-
-  if (!unlocked) {
-    return (
-      <Card className="mx-auto max-w-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Lock className="h-4 w-4" aria-hidden />
-            Admin access
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form
-            className="space-y-3"
-            onSubmit={(e) => {
-              e.preventDefault()
-              if (unlockAdmin(key.trim())) {
-                setUnlocked(true)
-              } else {
-                toast.error("Incorrect admin key")
-              }
-            }}
-          >
-            <Input
-              type="password"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder="Admin key"
-              aria-label="Admin key"
-              className="min-h-11"
-            />
-            <Button type="submit" className="min-h-11 w-full">
-              Unlock
-            </Button>
-            <p className="text-xs text-muted-foreground">Demo key: zsgc-admin</p>
-          </form>
-        </CardContent>
-      </Card>
-    )
+  const reset = async () => {
+    await resetDemoData()
+    await qc.invalidateQueries()
+    toast.success("Demo data reset", { description: "Products, orders and your cart are back to the starting state." })
   }
 
   return (
     <section aria-label="Admin" className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl">
           <ShieldCheck className="h-6 w-6 text-primary" aria-hidden />
           Admin
         </h1>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            lockAdmin()
-            setUnlocked(false)
-            setKey("")
-          }}
-        >
-          Lock
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={reset}>
+          <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+          Reset demo data
         </Button>
       </div>
 
-      {readOnly && (
-        <div
-          role="status"
-          className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
-        >
-          <Eye className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <p>
-            <span className="font-medium">Read-only demo.</span> Browse every admin screen freely —
-            saving, deleting, and sending emails are disabled.
-          </p>
-        </div>
-      )}
+      <div
+        role="note"
+        className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+      >
+        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        <p>
+          <span className="font-medium">Demo admin, open to everyone.</span> All data is fictional and
+          every change is saved only in this browser — nothing reaches a server or other visitors.
+        </p>
+      </div>
 
       <Tabs defaultValue="dashboard">
         <div className="overflow-x-auto">

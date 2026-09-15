@@ -34,10 +34,8 @@ yarn-error.log*
 .env*
 !.env.example
 
-# local SQLite database (recreate with `npm run setup`)
-db/*.db
-db/*.db-journal
-.zscripts/dev.pid
+# legacy local SQLite files from the original export
+db/
 
 # vercel
 .vercel

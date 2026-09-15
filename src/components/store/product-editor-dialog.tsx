@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { adminFetch } from "@/lib/session"
+import { createProduct, updateProduct } from "@/lib/demo-db"
 import type { ProductDTO } from "@/lib/types"
 
 const CATEGORIES = ["Apparel", "Accessories", "Home", "Tech", "Pantry"]
@@ -75,8 +75,7 @@ export function ProductEditorDialog({
     }
     setSaving(true)
     try {
-      const body = {
-        ...(product ? { id: product.id } : {}),
+      const input = {
         name: name.trim(),
         category,
         priceCents,
@@ -86,13 +85,8 @@ export function ProductEditorDialog({
         subscription,
         active,
       }
-      const res = await adminFetch("/api/admin/products", {
-        method: product ? "PATCH" : "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? "Failed to save product")
+      if (product) await updateProduct(product.id, input)
+      else await createProduct(input)
       toast.success(product ? "Product updated" : "Product created", { description: name })
       onSaved()
       onOpenChange(false)

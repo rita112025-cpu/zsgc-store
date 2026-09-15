@@ -10,8 +10,7 @@ import { Button } from "@/components/ui/button"
 import { useAppStore } from "@/store/app-store"
 import { useOrders } from "@/hooks/use-store"
 import { formatMoney, type CurrencyCode } from "@/lib/currency"
-import type { EmailLogDTO } from "@/lib/types"
-import { getSessionId } from "@/lib/session"
+import { getCustomerEmails } from "@/lib/demo-db"
 
 const STATUS_STYLES: Record<string, string> = {
   paid: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
@@ -20,17 +19,7 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 function useCustomerEmails() {
-  const sessionId = getSessionId()
-  return useQuery({
-    queryKey: ["emails", sessionId],
-    queryFn: async () => {
-      const res = await fetch(`/api/emails?sessionId=${sessionId}&limit=10`)
-      if (!res.ok) throw new Error("Failed to load notifications")
-      return (await res.json()) as { emails: EmailLogDTO[] }
-    },
-    select: (d) => d.emails,
-    enabled: typeof window !== "undefined",
-  })
+  return useQuery({ queryKey: ["emails"], queryFn: () => getCustomerEmails(10) })
 }
 
 export function OrdersView() {

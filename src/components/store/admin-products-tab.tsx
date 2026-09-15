@@ -31,21 +31,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ProductImage } from "@/components/store/product-image"
 import { ProductEditorDialog } from "@/components/store/product-editor-dialog"
 import { VariantEditor } from "@/components/store/variant-editor"
-import { adminFetch } from "@/lib/session"
+import { adminListProducts, deleteProduct, setProductActive } from "@/lib/demo-db"
 import type { ProductDTO } from "@/lib/types"
 import { formatMoney } from "@/lib/currency"
 import { useAppStore } from "@/store/app-store"
 
 function useAdminProducts() {
-  return useQuery({
-    queryKey: ["admin", "products"],
-    queryFn: async () => {
-      const res = await adminFetch("/api/admin/products")
-      if (!res.ok) throw new Error("Failed to load products")
-      return (await res.json()) as { products: ProductDTO[] }
-    },
-    select: (d) => d.products,
-  })
+  return useQuery({ queryKey: ["admin", "products"], queryFn: adminListProducts })
 }
 
 export function AdminProductsTab() {
@@ -65,11 +57,7 @@ export function AdminProductsTab() {
   }
 
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await adminFetch(`/api/admin/products?id=${id}`, { method: "DELETE" })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? "Failed to delete")
-    },
+    mutationFn: deleteProduct,
     onSuccess: () => {
       toast.success("Product deleted")
       setDeleting(null)
@@ -79,15 +67,7 @@ export function AdminProductsTab() {
   })
 
   const toggleActive = useMutation({
-    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const res = await adminFetch("/api/admin/products", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id, active }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? "Failed to update")
-    },
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => setProductActive(id, active),
     onSuccess: () => invalidate(),
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to update"),
   })

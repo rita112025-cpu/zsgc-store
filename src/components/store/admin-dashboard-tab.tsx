@@ -19,21 +19,12 @@ import { AlertTriangle, DollarSign, RefreshCw, ShoppingBag, Users } from "lucide
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { adminFetch } from "@/lib/session"
-import type { StatsDTO } from "@/lib/types"
+import { getStats } from "@/lib/demo-db"
 
 const CHART_COLORS = ["#059669", "#d97706", "#0d9488", "#ca8a04", "#15803d"]
 
 function useAdminStats() {
-  return useQuery({
-    queryKey: ["admin", "stats"],
-    queryFn: async () => {
-      const res = await adminFetch("/api/admin/stats")
-      if (!res.ok) throw new Error("Failed to load stats")
-      return (await res.json()) as { stats: StatsDTO }
-    },
-    select: (d) => d.stats,
-  })
+  return useQuery({ queryKey: ["admin", "stats"], queryFn: getStats })
 }
 
 export function AdminDashboardTab() {

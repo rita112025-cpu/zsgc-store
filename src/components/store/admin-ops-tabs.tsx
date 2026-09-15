@@ -7,26 +7,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { adminFetch } from "@/lib/session"
-import type { EmailLogDTO } from "@/lib/types"
-
-interface AbandonedCart {
-  sessionId: string
-  itemCount: number
-  totalCents: number
-  lastUpdated: string
-}
+import { getAbandonedCarts, getAllEmails, sendRecoveryEmail } from "@/lib/demo-db"
 
 function useAbandonedCarts() {
-  return useQuery({
-    queryKey: ["admin", "carts"],
-    queryFn: async () => {
-      const res = await adminFetch("/api/admin/carts")
-      if (!res.ok) throw new Error("Failed to load carts")
-      return (await res.json()) as { carts: AbandonedCart[] }
-    },
-    select: (d) => d.carts,
-  })
+  return useQuery({ queryKey: ["admin", "carts"], queryFn: getAbandonedCarts })
 }
 
 export function AdminCartsTab() {
@@ -34,15 +18,7 @@ export function AdminCartsTab() {
   const qc = useQueryClient()
 
   const recover = useMutation({
-    mutationFn: async (sessionId: string) => {
-      const res = await adminFetch("/api/admin/carts", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sessionId }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? "Failed to send recovery email")
-    },
+    mutationFn: sendRecoveryEmail,
     onSuccess: () => {
       toast.success("Recovery email queued", {
         description: "Logged to the email outbox — visible in the Emails tab.",
@@ -106,15 +82,7 @@ export function AdminCartsTab() {
 }
 
 function useAdminEmails() {
-  return useQuery({
-    queryKey: ["admin", "emails"],
-    queryFn: async () => {
-      const res = await adminFetch("/api/admin/emails")
-      if (!res.ok) throw new Error("Failed to load emails")
-      return (await res.json()) as { emails: EmailLogDTO[] }
-    },
-    select: (d) => d.emails,
-  })
+  return useQuery({ queryKey: ["admin", "emails"], queryFn: getAllEmails })
 }
 
 const KIND_STYLES: Record<string, string> = {

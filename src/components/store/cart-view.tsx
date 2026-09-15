@@ -33,15 +33,8 @@ import { useAppStore } from "@/store/app-store"
 import { useCart, useInvalidateStoreData, useLoyalty } from "@/hooks/use-store"
 import { ProductImage } from "@/components/store/product-image"
 import { formatMoney } from "@/lib/currency"
-import { getSessionId } from "@/lib/session"
+import { checkout as placeOrder, lookupGiftCard, removeCartItem, updateCartItem } from "@/lib/demo-db"
 import type { CheckoutResult } from "@/lib/types"
-
-async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init)
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? `Request failed (${res.status})`)
-  return data as T
-}
 
 export function CartView() {
   const currency = useAppStore((s) => s.currency)
@@ -78,50 +71,39 @@ export function CartView() {
 
   const checkout = useMutation({
     mutationFn: () =>
-      jsonFetch<{ checkout: CheckoutResult }>("/api/checkout", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          sessionId: getSessionId(),
-          email,
-          currency,
-          giftCardCode: giftCents > 0 ? giftCode.trim().toUpperCase() : undefined,
-          useLoyalty: redeemLoyalty && points > 0,
-        }),
+      placeOrder({
+        email,
+        currency,
+        giftCardCode: giftCents > 0 ? giftCode.trim().toUpperCase() : undefined,
+        useLoyalty: redeemLoyalty && points > 0,
       }),
     onSuccess: (d) => {
-      setPlaced(d.checkout)
+      setPlaced(d)
       setGiftCode("")
       setGiftBalance(null)
       setRedeemLoyalty(false)
       invalidateAll()
       toast.success("Order placed! Confirmation email sent.", {
-        description: `You earned ${d.checkout.loyalty.earned} loyalty points.`,
+        description: `You earned ${d.loyalty.earned} loyalty points.`,
       })
     },
     onError: (e) => toast.error(e.message),
   })
 
   const updateQty = useMutation({
-    mutationFn: (input: { id: string; quantity: number }) =>
-      jsonFetch("/api/cart", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(input),
-      }),
+    mutationFn: updateCartItem,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["cart"] }),
     onError: (e) => toast.error(e.message),
   })
 
   const removeItem = useMutation({
-    mutationFn: (id: string) => jsonFetch(`/api/cart?id=${id}`, { method: "DELETE" }),
+    mutationFn: removeCartItem,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["cart"] }),
     onError: (e) => toast.error(e.message),
   })
 
   const checkGiftCard = useMutation({
-    mutationFn: (code: string) =>
-      jsonFetch<{ balanceCents: number; status: string }>(`/api/giftcard?code=${encodeURIComponent(code)}`),
+    mutationFn: lookupGiftCard,
     onSuccess: (d) => {
       setGiftBalance({ cents: d.balanceCents, status: d.status })
       if (d.balanceCents > 0) toast.success(`Gift card applies ${formatMoney(d.balanceCents, currency)}`)
