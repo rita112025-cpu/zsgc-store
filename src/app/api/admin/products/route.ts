@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import type { Product, Variant } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ADMIN_KEY, type ProductDTO, type VariantDTO } from "@/lib/types";
+import { adminReadOnlyResponse, adminWritesEnabled } from "@/lib/admin-mode";
 
 type ProductWithVariants = Product & { variants: Variant[] };
 
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
   if (!isAdmin(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!adminWritesEnabled()) return adminReadOnlyResponse();
 
   const body = await request.json().catch(() => null);
   if (
@@ -120,6 +122,7 @@ export async function PATCH(request: Request) {
   if (!isAdmin(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!adminWritesEnabled()) return adminReadOnlyResponse();
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body.id !== "string" || !body.id) {
@@ -159,6 +162,7 @@ export async function PUT(request: Request) {
   if (!isAdmin(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!adminWritesEnabled()) return adminReadOnlyResponse();
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body.id !== "string" || !body.id) {
@@ -207,6 +211,7 @@ export async function DELETE(request: Request) {
   if (!isAdmin(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!adminWritesEnabled()) return adminReadOnlyResponse();
 
   const id = new URL(request.url).searchParams.get("id");
   if (!id) {

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { ADMIN_KEY } from "@/lib/types";
+import { adminReadOnlyResponse, adminWritesEnabled } from "@/lib/admin-mode";
 
 export async function GET(request: Request) {
   if (request.headers.get("x-admin-key") !== ADMIN_KEY) {
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
   if (request.headers.get("x-admin-key") !== ADMIN_KEY) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!adminWritesEnabled()) return adminReadOnlyResponse();
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body.sessionId !== "string" || !body.sessionId) {

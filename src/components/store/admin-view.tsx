@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Lock, ShieldCheck } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { Eye, Lock, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,6 +17,11 @@ import { isAdminUnlocked, lockAdmin, unlockAdmin } from "@/lib/session"
 export function AdminView() {
   const [unlocked, setUnlocked] = useState(false)
   const [key, setKey] = useState("")
+  const { data: readOnly } = useQuery({
+    queryKey: ["config"],
+    queryFn: async () => (await (await fetch("/api/config")).json()) as { adminReadOnly: boolean },
+    select: (d) => d.adminReadOnly,
+  })
 
   useEffect(() => setUnlocked(isAdminUnlocked()), [])
 
@@ -77,6 +83,19 @@ export function AdminView() {
           Lock
         </Button>
       </div>
+
+      {readOnly && (
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+        >
+          <Eye className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>
+            <span className="font-medium">Read-only demo.</span> Browse every admin screen freely —
+            saving, deleting, and sending emails are disabled.
+          </p>
+        </div>
+      )}
 
       <Tabs defaultValue="dashboard">
         <div className="overflow-x-auto">
