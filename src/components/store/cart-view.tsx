@@ -33,6 +33,7 @@ import { useAppStore } from "@/store/app-store"
 import { useCart, useInvalidateStoreData, useLoyalty } from "@/hooks/use-store"
 import { ProductImage } from "@/components/store/product-image"
 import { formatMoney } from "@/lib/currency"
+import { getSessionId } from "@/lib/session"
 import type { CheckoutResult } from "@/lib/types"
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
@@ -53,7 +54,7 @@ export function CartView() {
   const [email, setEmail] = useState("")
   const [giftCode, setGiftCode] = useState("")
   const [giftBalance, setGiftBalance] = useState<{ cents: number; status: string } | null>(null)
-  const [useLoyalty, setUseLoyalty] = useState(false)
+  const [redeemLoyalty, setRedeemLoyalty] = useState(false)
   const [placed, setPlaced] = useState<CheckoutResult | null>(null)
 
   const items = cart.data ?? []
@@ -67,7 +68,7 @@ export function CartView() {
       ),
     [items]
   )
-  const loyaltyCents = useLoyalty ? Math.min(points * 5, subtotalCents) : 0
+  const loyaltyCents = redeemLoyalty ? Math.min(points * 5, subtotalCents) : 0
   const giftCents = giftBalance && giftBalance.cents > 0
     ? Math.min(giftBalance.cents, Math.max(0, subtotalCents - loyaltyCents))
     : 0
@@ -81,17 +82,18 @@ export function CartView() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          sessionId: getSessionId(),
           email,
           currency,
           giftCardCode: giftCents > 0 ? giftCode.trim().toUpperCase() : undefined,
-          useLoyalty: useLoyalty && points > 0,
+          useLoyalty: redeemLoyalty && points > 0,
         }),
       }),
     onSuccess: (d) => {
       setPlaced(d.checkout)
       setGiftCode("")
       setGiftBalance(null)
-      setUseLoyalty(false)
+      setRedeemLoyalty(false)
       invalidateAll()
       toast.success("Order placed! Confirmation email sent.", {
         description: `You earned ${d.checkout.loyalty.earned} loyalty points.`,
@@ -316,8 +318,8 @@ export function CartView() {
                     </div>
                     <Switch
                       id="loyalty"
-                      checked={useLoyalty}
-                      onCheckedChange={setUseLoyalty}
+                      checked={redeemLoyalty}
+                      onCheckedChange={setRedeemLoyalty}
                       aria-label="Redeem loyalty points"
                     />
                   </div>

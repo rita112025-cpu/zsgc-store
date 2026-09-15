@@ -9,7 +9,7 @@ import { useCart, useWishlist } from "@/hooks/use-store"
 import { CurrencySelect } from "@/components/store/currency-select"
 import { cn } from "@/lib/utils"
 
-const NAV_ITEMS: { view: View; label: string; icon: Store | ShoppingBag | Heart | Package | ShieldCheck }[] = [
+const NAV_ITEMS: { view: View; label: string; icon: typeof Store }[] = [
   { view: "shop", label: "Shop", icon: Store },
   { view: "cart", label: "Cart", icon: ShoppingBag },
   { view: "wishlist", label: "Wishlist", icon: Heart },
